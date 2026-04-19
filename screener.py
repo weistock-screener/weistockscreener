@@ -24,28 +24,26 @@ TW_WATCHLIST = [
 ]
 
 TW_MARKET = [
-    ("加權指數", "^TWII"),
-    ("台積電",   "2330.TW"),
-    ("聯發科",   "2454.TW"),
-    ("鴻海",     "2317.TW"),
-    ("台達電",   "2308.TW"),
-    ("富邦金",   "2881.TW"),
+    ("TWII", "^TWII"),
+    ("TSMC", "2330.TW"),
+    ("MediaTek", "2454.TW"),
+    ("Foxconn", "2317.TW"),
+    ("Delta", "2308.TW"),
+    ("Fubon", "2881.TW"),
 ]
 
 US_MARKET = [
-    ("S&P500",  "^GSPC"),
-    ("Nasdaq",  "^IXIC"),
-    ("Dow",     "^DJI"),
-    ("恐慌指數", "^VIX"),
-    ("NVDA",    "NVDA"),
-    ("AAPL",    "AAPL"),
-    ("MSFT",    "MSFT"),
-    ("TSLA",    "TSLA"),
-    ("AMD",     "AMD"),
-    ("SOX",     "SOXX"),
+    ("SP500", "^GSPC"),
+    ("Nasdaq", "^IXIC"),
+    ("Dow", "^DJI"),
+    ("VIX", "^VIX"),
+    ("NVDA", "NVDA"),
+    ("AAPL", "AAPL"),
+    ("MSFT", "MSFT"),
+    ("TSLA", "TSLA"),
+    ("AMD", "AMD"),
+    ("SOXX", "SOXX"),
 ]
-
-# ── 技術指標 ─────────────────────────────────────────
 
 def fetch_data(ticker):
     try:
@@ -60,44 +58,44 @@ def fetch_data(ticker):
 
 def calc_rsi(close, period=14):
     delta = close.diff()
-    gain  = delta.clip(lower=0).rolling(period).mean()
-    loss  = (-delta.clip(upper=0)).rolling(period).mean()
-    rs    = gain / loss
+    gain = delta.clip(lower=0).rolling(period).mean()
+    loss = (-delta.clip(upper=0)).rolling(period).mean()
+    rs = gain / loss
     return 100 - (100 / (1 + rs))
 
 def calc_indicators(df):
-    close  = df["Close"]
-    high   = df["High"]
-    low    = df["Low"]
+    close = df["Close"]
+    high = df["High"]
+    low = df["Low"]
     volume = df["Volume"]
-    ma20   = close.rolling(20).mean()
-    ma60   = close.rolling(60).mean()
-    vol5   = volume.rolling(5).mean()
-    vol20  = volume.rolling(20).mean()
-    rsi    = calc_rsi(close)
+    ma20 = close.rolling(20).mean()
+    ma60 = close.rolling(60).mean()
+    vol5 = volume.rolling(5).mean()
+    vol20 = volume.rolling(20).mean()
+    rsi = calc_rsi(close)
     last_close = float(close.iloc[-1])
-    last_high  = float(high.iloc[-1])
-    last_low   = float(low.iloc[-1])
-    day_range  = last_high - last_low
+    last_high = float(high.iloc[-1])
+    last_low = float(low.iloc[-1])
+    day_range = last_high - last_low
     close_strength = (last_close - last_low) / day_range if day_range > 0 else 0.5
     pct_5d = (last_close / float(close.iloc[-6]) - 1) * 100 if len(close) >= 6 else 0
     return {
-        "close"         : last_close,
-        "vol_ratio"     : float(vol5.iloc[-1]) / float(vol20.iloc[-1]) if float(vol20.iloc[-1]) > 0 else 0,
-        "pct_5d"        : pct_5d,
-        "rsi"           : float(rsi.iloc[-1]),
+        "close": last_close,
+        "vol_ratio": float(vol5.iloc[-1]) / float(vol20.iloc[-1]) if float(vol20.iloc[-1]) > 0 else 0,
+        "pct_5d": pct_5d,
+        "rsi": float(rsi.iloc[-1]),
         "close_strength": close_strength,
-        "above_ma20"    : last_close > float(ma20.iloc[-1]),
-        "above_ma60"    : last_close > float(ma60.iloc[-1]),
-        "ma20_up"       : float(ma20.iloc[-1]) > float(ma20.iloc[-5]),
-        "ma60_up"       : float(ma60.iloc[-1]) > float(ma60.iloc[-5]),
+        "above_ma20": last_close > float(ma20.iloc[-1]),
+        "above_ma60": last_close > float(ma60.iloc[-1]),
+        "ma20_up": float(ma20.iloc[-1]) > float(ma20.iloc[-5]),
+        "ma60_up": float(ma60.iloc[-1]) > float(ma60.iloc[-5]),
     }
 
 def is_qualified(ind):
-    trend_ok    = ind["above_ma20"] and ind["above_ma60"] and ind["ma20_up"] and ind["ma60_up"]
-    volume_ok   = ind["vol_ratio"] >= 1.3
+    trend_ok = ind["above_ma20"] and ind["above_ma60"] and ind["ma20_up"] and ind["ma60_up"]
+    volume_ok = ind["vol_ratio"] >= 1.3
     momentum_ok = ind["pct_5d"] > 0
-    rsi_ok      = 50 <= ind["rsi"] <= 75
+    rsi_ok = 50 <= ind["rsi"] <= 75
     strength_ok = ind["close_strength"] >= 0.8
     return trend_ok and volume_ok and momentum_ok and rsi_ok and strength_ok
 
@@ -110,16 +108,14 @@ def screen(tickers):
         ind = calc_indicators(df)
         if is_qualified(ind):
             results.append({
-                "ticker"        : ticker,
-                "close"         : ind["close"],
-                "pct_5d"        : ind["pct_5d"],
-                "vol_ratio"     : ind["vol_ratio"],
-                "rsi"           : ind["rsi"],
+                "ticker": ticker,
+                "close": ind["close"],
+                "pct_5d": ind["pct_5d"],
+                "vol_ratio": ind["vol_ratio"],
+                "rsi": ind["rsi"],
                 "close_strength": ind["close_strength"],
             })
     return results
-
-# ── 行情摘要 ─────────────────────────────────────────
 
 def fetch_quote(ticker):
     try:
@@ -128,25 +124,23 @@ def fetch_quote(ticker):
         if len(df) < 2:
             return None
         df.columns = [c[0] if isinstance(c, tuple) else c for c in df.columns]
-        last  = float(df["Close"].iloc[-1])
-        prev  = float(df["Close"].iloc[-2])
-        pct   = (last / prev - 1) * 100
+        last = float(df["Close"].iloc[-1])
+        prev = float(df["Close"].iloc[-2])
+        pct = (last / prev - 1) * 100
         return {"price": last, "pct": pct}
     except Exception:
         return None
 
 def format_quote_block(title, market_list):
-    lines = [f"*{title}*"]
+    lines = [title]
     for name, ticker in market_list:
         q = fetch_quote(ticker)
         if q is None:
-            lines.append(f"- {name}: 資料取得失敗")
+            lines.append(name + ": N/A")
             continue
-        arrow = "▲" if q["pct"] >= 0 else "▼"
-        lines.append(f"{arrow} {name}: {q['price']:,.2f} ({q['pct']:+.2f}%)")
+        arrow = "up" if q["pct"] >= 0 else "dn"
+        lines.append(name + " " + str(round(q["price"], 2)) + " (" + arrow + " " + str(round(q["pct"], 2)) + "%)")
     return "\n".join(lines)
-
-# ── 三大法人 ─────────────────────────────────────────
 
 def fetch_institutional_flow():
     try:
@@ -187,91 +181,97 @@ def fetch_industry_flow():
         return None
 
 def format_institutional_block():
-    lines = ["📋 *三大法人資金流向*"]
+    lines = ["--- Institutional Flow ---"]
     flow = fetch_institutional_flow()
     if flow:
         for item in flow:
-            arrow = "▲" if item["net"] >= 0 else "▼"
-            lines.append(f"{arrow} {item['name']}: {item['net']:+,} 萬")
+            arrow = "+" if item["net"] >= 0 else "-"
+            lines.append(arrow + " " + item["name"] + ": " + str(item["net"]) + "M")
     else:
-        lines.append("- 資料尚未更新")
+        lines.append("No data yet")
     lines.append("")
     industries = fetch_industry_flow()
     if industries:
-        lines.append("🏭 *流入產業 Top5*")
+        lines.append("Top 5 inflow sectors:")
         for item in industries[:5]:
-            lines.append(f"+ {item['industry']}: {item['net']:+,} 萬")
+            lines.append("+ " + item["industry"] + ": " + str(item["net"]) + "M")
         lines.append("")
-        lines.append("🔻 *流出產業 Bottom3*")
+        lines.append("Bottom 3 outflow sectors:")
         for item in industries[-3:]:
-            lines.append(f"- {item['industry']}: {item['net']:+,} 萬")
+            lines.append("- " + item["industry"] + ": " + str(item["net"]) + "M")
     else:
-        lines.append("- 產業資料尚未更新")
+        lines.append("No sector data yet")
     return "\n".join(lines)
 
-# ── 三種推送模式 ─────────────────────────────────────
-
 def morning_message():
-    """08:30 早盤前：選股名單 + 法人流向"""
     today = datetime.now().strftime("%Y/%m/%d")
-    lines = [f"🌅 *早安！波段觀察名單 {today}*\n"]
+    lines = ["Good morning! Stock Watch " + today, ""]
     us_hits = screen(US_WATCHLIST)
     tw_hits = screen(TW_WATCHLIST)
 
-    def block(title, hits):
-        if not hits:
-            return f"*{title}*\n- 今日無符合標的\n"
-        rows = [f"*{title}*"]
-        for h in sorted(hits, key=lambda x: x["vol_ratio"], reverse=True):
-            ticker = h['ticker'].replace('.TW','')
-            rows.append(
-                f"- {ticker}  ${h['close']:.2f}"
-                f"  5d:{h['pct_5d']:+.1f}%"
-                f"  RSI:{h['rsi']:.0f}"
-                f"  vol:{h['vol_ratio']:.1f}x"
-                f"  強:{h['close_strength']:.0%}"
-            )
-        return "\n".join(rows) + "\n"
+    lines.append("== US Stocks ==")
+    if not us_hits:
+        lines.append("No qualified stocks today")
+    else:
+        for h in sorted(us_hits, key=lambda x: x["vol_ratio"], reverse=True):
+            t = h["ticker"]
+            p = str(round(h["close"], 2))
+            d = str(round(h["pct_5d"], 1))
+            r = str(round(h["rsi"], 0))
+            v = str(round(h["vol_ratio"], 1))
+            s = str(round(h["close_strength"] * 100, 0))
+            lines.append(t + " $" + p + " 5d:" + d + "% RSI:" + r + " vol:" + v + "x str:" + s + "%")
 
-    lines.append(block("美股", us_hits))
-    lines.append(block("台股", tw_hits))
-    lines.append("條件: MA多頭|RSI 50-75|量比1.3x+|收盤強度80%+\n")
-    lines.append("─────────────────")
+    lines.append("")
+    lines.append("== TW Stocks ==")
+    if not tw_hits:
+        lines.append("No qualified stocks today")
+    else:
+        for h in sorted(tw_hits, key=lambda x: x["vol_ratio"], reverse=True):
+            t = h["ticker"].replace(".TW", "")
+            p = str(round(h["close"], 2))
+            d = str(round(h["pct_5d"], 1))
+            r = str(round(h["rsi"], 0))
+            v = str(round(h["vol_ratio"], 1))
+            s = str(round(h["close_strength"] * 100, 0))
+            lines.append(t + " $" + p + " 5d:" + d + "% RSI:" + r + " vol:" + v + "x str:" + s + "%")
+
+    lines.append("")
+    lines.append("Conditions: MA bullish | RSI 50-75 | vol 1.3x+ | close str 80%+")
+    lines.append("")
     lines.append(format_institutional_block())
     return "\n".join(lines)
 
 def tw_close_message():
-    """14:00 台股收盤摘要"""
     today = datetime.now().strftime("%Y/%m/%d")
-    lines = [f"🇹🇼 *台股日盤收盤摘要 {today}*\n"]
-    lines.append(format_quote_block("大盤 & 權值股", TW_MARKET))
-    lines.append("\n─────────────────")
+    lines = ["TW Market Close " + today, ""]
+    lines.append(format_quote_block("== TW Market ==", TW_MARKET))
+    lines.append("")
     lines.append(format_institutional_block())
     return "\n".join(lines)
 
 def us_close_message():
-    """06:00 美股收盤摘要（含週末）"""
     today = datetime.now().strftime("%Y/%m/%d")
-    lines = [f"🇺🇸 *美股收盤摘要 {today}*\n"]
-    lines.append(format_quote_block("指數 & 個股", US_MARKET))
-    lines.append("\n─────────────────")
-    lines.append("📌 *市場觀察*")
+    lines = ["US Market Close " + today, ""]
+    lines.append(format_quote_block("== US Market ==", US_MARKET))
+    lines.append("")
     vix = fetch_quote("^VIX")
     if vix:
-        if vix["price"] < 15:
-            mood = "市場極度樂觀，注意過熱風險"
-        elif vix["price"] < 20:
-            mood = "市場情緒平穩"
-        elif vix["price"] < 30:
-            mood = "市場出現恐慌，注意波動"
+        v = vix["price"]
+        if v < 15:
+            mood = "Extremely bullish, watch for overheating"
+        elif v < 20:
+            mood = "Market calm"
+        elif v < 30:
+            mood = "Panic emerging, watch volatility"
         else:
-            mood = "市場極度恐慌，危機模式"
-        lines.append(f"VIX {vix['price']:.1f} → {mood}")
+            mood = "Extreme fear, crisis mode"
+        lines.append("VIX " + str(round(v, 1)) + " -> " + mood)
     return "\n".join(lines)
 
 def send_telegram(text):
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": text, "parse_mode": "Markdown"}
+    url = "https://api.telegram.org/bot" + TELEGRAM_TOKEN + "/sendMessage"
+    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": text}
     r = requests.post(url, json=payload, timeout=15)
     r.raise_for_status()
 
@@ -286,7 +286,7 @@ if __name__ == "__main__":
         print("us close mode...")
         msg = us_close_message()
     else:
-        msg = "未知模式"
+        msg = "Unknown mode"
     print(msg)
     send_telegram(msg)
     print("done")
