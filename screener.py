@@ -11,7 +11,7 @@ US_WATCHLIST = [
     "AAPL","MSFT","NVDA","AMD","META","GOOGL","AMZN","TSLA",
     "AVGO","ORCL","CRM","PANW","SNOW","PLTR","SMCI","ARM",
     "TSM","ASML","MRVL","QCOM","AMAT","KLAC","LRCX","MU",
-    "JPY","GS","V","MA","PYPL","SQ","COIN",
+    "GS","V","MA","PYPL","SQ","COIN",
     "SPY","QQQ","SOXX","XLK"
 ]
 
@@ -82,12 +82,37 @@ def screen(tickers):
 
 def format_message(us_hits, tw_hits):
     today = datetime.now().strftime("%Y/%m/%d")
-    lines = [f"📊 *波段觀察名單｜{today}*\n"]
+    lines = [f"📊 *波段觀察名單 {today}*\n"]
 
     def block(title, hits):
         if not hits:
-            return f"*{title}*\n➖ 今日無符合標的\n"
+            return f"*{title}*\n- 今日無符合標的\n"
         rows = [f"*{title}*"]
         for h in sorted(hits, key=lambda x: x["vol_ratio"], reverse=True):
             ticker = h['ticker'].replace('.TW','')
-            rows.append(f"▸ `{ticker}` ${h['close']:.2f}  5日{h['pct_5d​​​​​​​​​​​​​​​​
+            pct = h['pct_5d']
+            vol = h['vol_ratio']
+            price = h['close']
+            rows.append(f"- {ticker}  ${price:.2f}  5d:{pct:+.1f}%  vol:{vol:.1f}x")
+        return "\n".join(rows) + "\n"
+
+    lines.append(block("美股", us_hits))
+    lines.append(block("台股", tw_hits))
+    lines.append("條件: 股價>MA20>MA60 均線走揚 | 量比1.3x+ | 近5日正報酬")
+    return "\n".join(lines)
+
+def send_telegram(text):
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": text, "parse_mode": "Markdown"}
+    r = requests.post(url, json=payload, timeout=15)
+    r.raise_for_status()
+
+if __name__ == "__main__":
+    print("scanning US stocks...")
+    us_hits = screen(US_WATCHLIST)
+    print("scanning TW stocks...")
+    tw_hits = screen(TW_WATCHLIST)
+    msg = format_message(us_hits, tw_hits)
+    print(msg)
+    send_telegram(msg)
+    print("done")
