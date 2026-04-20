@@ -2,11 +2,15 @@ import yfinance as yf
 import pandas as pd
 import requests
 import os
+import json
+from pathlib import Path
 from datetime import datetime
 
 TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
 TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 MODE = os.environ.get("MODE", "morning")
+
+HISTORY_FILE = "history.json"
 
 US_WATCHLIST = [
     "AAPL","MSFT","NVDA","AMD","META","GOOGL","AMZN","TSLA",
@@ -45,6 +49,44 @@ US_MARKET = [
     ("費城半導體SOXX", "SOXX"),
 ]
 
+def load_history():
+    try:
+        if Path(HISTORY_FILE).exists():
+            with open(HISTORY_FILE, "r") as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return {}
+
+def save_history(data):
+    try:
+        with open(HISTORY_FILE, "w") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+def update_streak(history, key, value, date_str):
+    if key not in history:
+        history[key] = {"streak": 0, "last_date": "", "last_value": 0}
+    entry = history[key]
+    if value > 0:
+        if entry["last_date"] != date_str:
+            entry["streak"] = entry.get("streak", 0) + 1
+    else:
+        entry["streak"] = 0
+    entry["last_date"] = date_str
+    entry["last_value"] = value
+    return entry["streak"]
+
+def check_alerts(history, today):
+    alerts = []
+    for key, entry in history.items():
+        if entry.get("last_date") == today and entry.get("streak", 0) >= 3:
+            val = entry.get("last_value", 0)
+            direction = "買超" if val > 0 else "賣超"
+            alerts.append(key + " 連續" + str(entry["streak"]) + "天" + direction)
+    return alerts
+
 def fmt_money(val):
     val = int(val)
     sign = "+" if val >= 0 else "-"
@@ -57,7 +99,6 @@ def fmt_money(val):
         return sign + str(round(val / 10000, 1)) + " 萬"
     else:
         return sign + str(val)
-
 
 def fetch_data(ticker):
     try:
@@ -112,24 +153,6 @@ def is_qualified(ind):
     rsi_ok = 50 <= ind["rsi"] <= 75
     strength_ok = ind["close_strength"] >= 0.8
     return trend_ok and volume_ok and momentum_ok and rsi_ok and strength_ok
-
-def screen(tickers):
-    results = []
-    for ticker in tickers:
-        df = fetch_data(ticker)
-        if df is None:
-            continue
-        ind = calc_indicators(df)
-        if is_qualified(ind):
-            results.append({
-                "ticker": ticker,
-                "close": ind["close"],
-                "pct_5d": ind["pct_5d"],
-                "vol_ratio": ind["vol_ratio"],
-                "rsi": ind["rsi"],
-                "close_strength": ind["close_strength"],
-            })
-    return results
 
 def fetch_tw_quote(stock_id):
     try:
@@ -186,7 +209,6 @@ def fetch_institutional_flow():
         return results
     except Exception:
         return None
-
 
 def fetch_industry_flow():
     try:
@@ -254,8 +276,10 @@ def calc_target_prices(close, df):
     return entry_low, entry_high, target, stop, gain
 
 def morning_message():
-    today = datetime.now().strftime("%Y/%m/%d")
-    lines = ["早安！波段觀察名單 " + today, ""]
+    today_label = datetime.now().strftime("%Y/%m/%d")
+    today_key = datetime.now().strftime("%Y%m%d")
+    lines = ["早安！波段觀察名單 " + today_label, ""]
+
     us_hits = []
     for ticker in US_WATCHLIST:
         df = fetch_data(ticker)
@@ -286,7 +310,7 @@ def morning_message():
             lines.append("進場區間: $" + str(entry_low) + " - $" + str(entry_high))
             lines.append("目標價: $" + str(target) + " (+" + str(gain) + "%)")
             lines.append("停損價: $" + str(stop) + " (MA20跌破)")
-            lines.append("RSI:" + str(int(h["rsi"])) + " 量比:" + str(round(h["vol_ratio"], 1)) + "倍 5日漲跌:" + ("+" if h["pct_5d"] >= 0 else "") + str(round(h["pct_5d"], 1)) + "%")
+            lines.append("RSI:" + str(int(h["rsi"])) + " 量比:" + str(round(h["vol_ratio"], 1)) + "倍 5日:" + ("+" if h["pct_5d"] >= 0 else "") + str(round(h["pct_5d"], 1)) + "%")
 
     lines.append("")
     lines.append("【台股篩選結果】")
@@ -302,12 +326,29 @@ def morning_message():
             lines.append("進場區間: $" + str(entry_low) + " - $" + str(entry_high))
             lines.append("目標價: $" + str(target) + " (+" + str(gain) + "%)")
             lines.append("停損價: $" + str(stop) + " (MA20跌破)")
-            lines.append("RSI:" + str(int(h["rsi"])) + " 量比:" + str(round(h["vol_ratio"], 1)) + "倍 5日漲跌:" + ("+" if h["pct_5d"] >= 0 else "") + str(round(h["pct_5d"], 1)) + "%")
+            lines.append("RSI:" + str(int(h["rsi"])) + " 量比:" + str(round(h["vol_ratio"], 1)) + "倍 5日:" + ("+" if h["pct_5d"] >= 0 else "") + str(round(h["pct_5d"], 1)) + "%")
 
     lines.append("")
     lines.append("篩選條件: 均線多頭排列 | RSI 50-75 | 量比1.3倍+ | 收盤強度80%+")
     lines.append("")
     lines.append(format_institutional_block())
+
+    history = load_history()
+    flow = fetch_institutional_flow()
+    if flow:
+        for item in flow:
+            update_streak(history, item["name"], item["net"], today_key)
+    for h in us_hits + tw_hits:
+        update_streak(history, h["ticker"] + "_上漲", h["pct_5d"], today_key)
+    save_history(history)
+
+    alerts = check_alerts(history, today_key)
+    if alerts:
+        lines.append("")
+        lines.append("【連續訊號警示】")
+        for a in alerts:
+            lines.append("！" + a)
+
     return "\n".join(lines)
 
 def tw_close_message():
