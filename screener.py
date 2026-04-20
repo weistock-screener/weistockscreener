@@ -50,13 +50,14 @@ def fmt_money(val):
     sign = "+" if val >= 0 else "-"
     val = abs(val)
     if val >= 100000000:
-        return sign + str(round(val / 100000000, 1)) + " 兆"
-    elif val >= 100000:
-        return sign + str(round(val / 100000, 1)) + " 億"
+        return sign + str(round(val / 100000000, 1)) + " 億"
+    elif val >= 10000000:
+        return sign + str(round(val / 10000000, 1)) + " 千萬"
     elif val >= 10000:
         return sign + str(round(val / 10000, 1)) + " 萬"
     else:
         return sign + str(val)
+
 
 def fetch_data(ticker):
     try:
