@@ -187,14 +187,21 @@ def fetch_industry_flow():
         rows = []
         for row in data.get("data", []):
             try:
-                net = int(row[4].replace(",", "").replace(" ", ""))
+                industry = row[0].strip()
+                net_str = row[4].replace(",", "").replace(" ", "").strip()
+                if not net_str or not industry:
+                    continue
+                net = int(net_str)
+                rows.append({"industry": industry, "net": net})
             except Exception:
-                net = 0
-            rows.append({"industry": row[0].strip(), "net": net})
+                continue
+        if not rows:
+            return None
         rows.sort(key=lambda x: x["net"], reverse=True)
         return rows
     except Exception:
         return None
+
 
 def format_institutional_block():
     lines = ["【三大法人買賣超】"]
