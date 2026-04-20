@@ -3,7 +3,7 @@ name: Daily Stock Screener
 on:
   schedule:
     - cron: "30 0 * * 1-5"
-    - cron: "0 6 * * 1-5"
+    - cron: "5 6 * * 1-5"
     - cron: "0 22 * * *"
   workflow_dispatch:
     inputs:
