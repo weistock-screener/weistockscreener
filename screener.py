@@ -61,15 +61,16 @@ def fmt_money(val):
 def fetch_quote(ticker):
     try:
         tk = yf.Ticker(ticker)
-        info = tk.fast_info
-        last = float(info.last_price)
-        prev = float(info.previous_close)
-        if not last or not prev:
+        df = tk.history(period="2d", interval="1d")
+        if len(df) < 1:
             return None
+        last = float(df["Close"].iloc[-1])
+        prev = float(df["Close"].iloc[-2]) if len(df) >= 2 else last
         pct = (last / prev - 1) * 100
         return {"price": last, "pct": pct}
     except Exception:
         return None
+
 
 
 def calc_rsi(close, period=14):
@@ -188,10 +189,17 @@ def fetch_industry_flow():
         for row in data.get("data", []):
             try:
                 industry = row[0].strip()
-                net_str = row[4].replace(",", "").replace(" ", "").strip()
-                if not net_str or not industry:
+                if not industry or industry == "*":
                     continue
-                net = int(net_str)
+                net = 0
+                for col in [4, 3, 2]:
+                    try:
+                        val = row[col].replace(",", "").replace(" ", "").strip()
+                        if val and val != "--":
+                            net = int(val)
+                            break
+                    except Exception:
+                        continue
                 rows.append({"industry": industry, "net": net})
             except Exception:
                 continue
