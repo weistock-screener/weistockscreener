@@ -177,10 +177,13 @@ def fetch_institutional_flow():
         for row in data.get("data", []):
             name = row[0].strip()
             try:
-                net = int(row[3].replace(",", ""))
-            except Exception:
-                net = 0
-            results.append({"name": name, "net": net})
+    net = int(row[3].replace(",", ""))
+except Exception:
+    net = 0
+if name == "合計":
+    net = -net
+results.append({"name": name, "net": net})
+
         return results
     except Exception:
         return None
