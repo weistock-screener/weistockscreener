@@ -58,16 +58,19 @@ def fmt_money(val):
     else:
         return sign + str(val)
 
-def fetch_data(ticker):
+def fetch_quote(ticker):
     try:
-        df = yf.download(ticker, period="90d", interval="1d",
-                         auto_adjust=True, progress=False)
-        if len(df) < 30:
+        tk = yf.Ticker(ticker)
+        info = tk.fast_info
+        last = float(info.last_price)
+        prev = float(info.previous_close)
+        if not last or not prev:
             return None
-        df.columns = [c[0] if isinstance(c, tuple) else c for c in df.columns]
-        return df
+        pct = (last / prev - 1) * 100
+        return {"price": last, "pct": pct}
     except Exception:
         return None
+
 
 def calc_rsi(close, period=14):
     delta = close.diff()
