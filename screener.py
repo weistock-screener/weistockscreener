@@ -212,7 +212,18 @@ def fetch_institutional_flow():
 
 def fetch_industry_flow():
     try:
-        url = "https://www.twse.com.tw/rwd/zh/fund/TWT38U?response=json"
+        from datetime import timedelta
+        today = datetime.now()
+        # 如果是週一早上，抓上週五的資料
+        if today.weekday() == 0 and today.hour < 16:
+            date_str = (today - timedelta(days=3)).strftime("%Y%m%d")
+        # 如果還沒到下午4點，抓前一個交易日
+        elif today.hour < 16:
+            date_str = (today - timedelta(days=1)).strftime("%Y%m%d")
+        else:
+            date_str = today.strftime("%Y%m%d")
+
+        url = "https://www.twse.com.tw/rwd/zh/fund/TWT38U?response=json&date=" + date_str
         r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
         data = r.json()
         if data.get("stat") != "OK":
@@ -241,6 +252,7 @@ def fetch_industry_flow():
         return rows
     except Exception:
         return None
+
 
 def format_institutional_block():
     lines = ["【三大法人買賣超】"]
