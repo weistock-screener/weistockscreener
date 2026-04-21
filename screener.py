@@ -214,20 +214,24 @@ def fetch_industry_flow():
     try:
         from datetime import timedelta
         today = datetime.now()
-        # 如果是週一早上，抓上週五的資料
-        if today.weekday() == 0 and today.hour < 16:
-            date_str = (today - timedelta(days=3)).strftime("%Y%m%d")
-        # 如果還沒到下午4點，抓前一個交易日
-        elif today.hour < 16:
-            date_str = (today - timedelta(days=1)).strftime("%Y%m%d")
+        # 早上16點前抓前一個交易日
+        if today.hour < 16:
+            delta = 3 if today.weekday() == 0 else 1
+            query_date = (today - timedelta(days=delta)).strftime("%Y%m%d")
         else:
-            date_str = today.strftime("%Y%m%d")
+            query_date = today.strftime("%Y%m%d")
 
-        url = "https://www.twse.com.tw/rwd/zh/fund/TWT38U?response=json&date=" + date_str
+        url = "https://www.twse.com.tw/rwd/zh/fund/TWT38U?response=json&strDate=" + query_date + "&endDate=" + query_date
         r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
         data = r.json()
         if data.get("stat") != "OK":
-            return None
+            # 抓不到就試試不帶日期的版本
+            url2 = "https://www.twse.com.tw/rwd/zh/fund/TWT38U?response=json"
+            r2 = requests.get(url2, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+            data = r2.json()
+            if data.get("stat") != "OK":
+                return None
+
         rows = []
         for row in data.get("data", []):
             try:
@@ -252,6 +256,7 @@ def fetch_industry_flow():
         return rows
     except Exception:
         return None
+
 
 
 def format_institutional_block():
