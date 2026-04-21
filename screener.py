@@ -214,24 +214,17 @@ def fetch_industry_flow():
     try:
         from datetime import timedelta
         today = datetime.now()
-        # 早上16點前抓前一個交易日
         if today.hour < 16:
             delta = 3 if today.weekday() == 0 else 1
             query_date = (today - timedelta(days=delta)).strftime("%Y%m%d")
         else:
             query_date = today.strftime("%Y%m%d")
 
-        url = "https://www.twse.com.tw/rwd/zh/fund/TWT38U?response=json&strDate=" + query_date + "&endDate=" + query_date
+        url = "https://www.twse.com.tw/rwd/zh/fund/TWT44U?response=json&date=" + query_date
         r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
         data = r.json()
         if data.get("stat") != "OK":
-            # 抓不到就試試不帶日期的版本
-            url2 = "https://www.twse.com.tw/rwd/zh/fund/TWT38U?response=json"
-            r2 = requests.get(url2, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
-            data = r2.json()
-            if data.get("stat") != "OK":
-                return None
-
+            return None
         rows = []
         for row in data.get("data", []):
             try:
@@ -239,7 +232,7 @@ def fetch_industry_flow():
                 if not industry or industry == "*":
                     continue
                 net = 0
-                for col in [4, 3, 2]:
+                for col in [3, 2, 1]:
                     try:
                         val = row[col].replace(",", "").replace(" ", "").strip()
                         if val and val != "--":
@@ -256,6 +249,7 @@ def fetch_industry_flow():
         return rows
     except Exception:
         return None
+
 
 
 
