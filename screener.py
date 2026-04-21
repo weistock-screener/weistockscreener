@@ -227,11 +227,18 @@ def fetch_industry_flow():
         if data.get("stat") != "OK":
             return None
 
-        # 抓產業對照表
-        industry_url = "https://openapi.twse.com.tw/v1/opendata/t187ap03_L"
-        r2 = requests.get(industry_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
-        industry_list = r2.json()
-        industry_map = {item.get("公司代號", "").strip(): item.get("產業別", "其他").strip() for item in industry_list}
+        # 抓產業對照表（用上市公司基本資料）
+        ind_url = "https://www.twse.com.tw/rwd/zh/company/electType?response=json&market=TAIEX"
+        r2 = requests.get(ind_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+        ind_data = r2.json()
+        industry_map = {}
+        for row in ind_data.get("data", []):
+            try:
+                stock_id = row[0].strip()
+                industry = row[4].strip() if len(row) > 4 else "其他"
+                industry_map[stock_id] = industry
+            except Exception:
+                continue
 
         # 按產業加總
         industry_net = {}
@@ -243,18 +250,20 @@ def fetch_industry_flow():
                     continue
                 net = int(net_str)
                 industry = industry_map.get(stock_id, "其他")
-                industry_net[industry] = industry_net.get(industry, 0) + net
+                if industry and industry != "其他":
+                    industry_net[industry] = industry_net.get(industry, 0) + net
             except Exception:
                 continue
 
         if not industry_net:
             return None
 
-        rows = [{"industry": k, "net": v} for k, v in industry_net.items() if k and k != "其他"]
+        rows = [{"industry": k, "net": v} for k, v in industry_net.items()]
         rows.sort(key=lambda x: x["net"], reverse=True)
         return rows
     except Exception:
         return None
+
 
 
 
