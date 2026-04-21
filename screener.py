@@ -220,35 +220,42 @@ def fetch_industry_flow():
         else:
             query_date = today.strftime("%Y%m%d")
 
-        url = "https://www.twse.com.tw/rwd/zh/fund/TWT44U?response=json&date=" + query_date
+        # 抓外資個股買賣超
+        url = "https://www.twse.com.tw/rwd/zh/fund/TWT38U?response=json&date=" + query_date
         r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
         data = r.json()
         if data.get("stat") != "OK":
             return None
-        rows = []
+
+        # 抓產業對照表
+        industry_url = "https://openapi.twse.com.tw/v1/opendata/t187ap03_L"
+        r2 = requests.get(industry_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+        industry_list = r2.json()
+        industry_map = {item.get("公司代號", "").strip(): item.get("產業別", "其他").strip() for item in industry_list}
+
+        # 按產業加總
+        industry_net = {}
         for row in data.get("data", []):
             try:
-                industry = row[0].strip()
-                if not industry or industry == "*":
+                stock_id = row[1].strip()
+                net_str = row[4].replace(",", "").strip()
+                if not net_str or net_str == "--":
                     continue
-                net = 0
-                for col in [3, 2, 1]:
-                    try:
-                        val = row[col].replace(",", "").replace(" ", "").strip()
-                        if val and val != "--":
-                            net = int(val)
-                            break
-                    except Exception:
-                        continue
-                rows.append({"industry": industry, "net": net})
+                net = int(net_str)
+                industry = industry_map.get(stock_id, "其他")
+                industry_net[industry] = industry_net.get(industry, 0) + net
             except Exception:
                 continue
-        if not rows:
+
+        if not industry_net:
             return None
+
+        rows = [{"industry": k, "net": v} for k, v in industry_net.items() if k and k != "其他"]
         rows.sort(key=lambda x: x["net"], reverse=True)
         return rows
     except Exception:
         return None
+
 
 
 
