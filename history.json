@@ -1,32 +1,32 @@
 {
   "自營商(自行買賣)": {
-    "streak": 2,
-    "last_date": "20260421",
-    "last_value": 558815918
+    "streak": 0,
+    "last_date": "20260424",
+    "last_value": -7809581269
   },
   "自營商(避險)": {
     "streak": 0,
-    "last_date": "20260421",
-    "last_value": -5401299617
+    "last_date": "20260424",
+    "last_value": -11380872172
   },
   "投信": {
-    "streak": 0,
-    "last_date": "20260421",
-    "last_value": -2031088234
+    "streak": 1,
+    "last_date": "20260424",
+    "last_value": 1356182124
   },
   "外資及陸資(不含外資自營商)": {
-    "streak": 2,
-    "last_date": "20260421",
-    "last_value": 4346379017
+    "streak": 0,
+    "last_date": "20260424",
+    "last_value": -2754993997
   },
   "外資自營商": {
     "streak": 0,
-    "last_date": "20260421",
+    "last_date": "20260424",
     "last_value": 0
   },
   "合計": {
-    "streak": 2,
-    "last_date": "20260421",
-    "last_value": 2527192916
+    "streak": 3,
+    "last_date": "20260424",
+    "last_value": 20589265314
   }
 }
